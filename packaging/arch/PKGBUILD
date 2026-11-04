@@ -1,0 +1,42 @@
+# Zacman Arch Linux package recipe.
+# Before an AUR submission, update pkgver, maintain the generated .SRCINFO,
+# and submit from an account whose identity/contact is valid for the AUR.
+pkgname=zacman
+pkgver=0.1.0
+pkgrel=1
+pkgdesc='Declarative package and systemd configuration manager for Arch Linux'
+arch=('x86_64' 'aarch64')
+url='https://github.com/T-Onix/zacman'
+license=('MIT')
+depends=('pacman' 'systemd')
+makedepends=('go' 'git')
+optdepends=(
+  'yay: AUR package installation helper'
+  'paru: alternative AUR package installation helper'
+  'flatpak: Flatpak application management'
+  'uv: Python CLI tool management'
+  'python-pip: user-scoped Python package management'
+  'npm: Node.js package management'
+  'cargo: Rust package management'
+  'go: Go tool installation'
+)
+backup=('etc/zacman/zacman.toml')
+source=("${pkgname}::git+https://github.com/T-Onix/zacman.git#tag=v${pkgver}")
+sha256sums=('SKIP') # VCS source; makepkg pins the requested Git tag.
+
+build() {
+  cd "${srcdir}/${pkgname}"
+  go build -mod=readonly -trimpath \
+    -ldflags "-s -w -X main.version=${pkgver}" \
+    -o zacman .
+}
+
+package() {
+  cd "${srcdir}/${pkgname}"
+  install -Dm755 zacman "${pkgdir}/usr/bin/zacman"
+  install -Dm644 examples/zacman.toml "${pkgdir}/etc/zacman/zacman.toml"
+  install -Dm644 LICENSE "${pkgdir}/usr/share/licenses/${pkgname}/LICENSE"
+  install -Dm644 README.md "${pkgdir}/usr/share/doc/${pkgname}/README.md"
+  install -d "${pkgdir}/usr/share/doc/${pkgname}/docs"
+  cp -a docs/. "${pkgdir}/usr/share/doc/${pkgname}/docs/"
+}

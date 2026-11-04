@@ -1,0 +1,18 @@
+# Build outputs
+/zacman
+/dist/
+/coverage/
+coverage.out
+*.test
+*.prof
+
+# Editor / OS files
+.idea/
+.vscode/
+.DS_Store
+*.swp
+*.swo
+
+# Temporary files
+*.tmp
+*.bak

@@ -1,0 +1,24 @@
+# Reference template created by zacman init -dfc.
+# This file does NOT replace /etc/pacman.conf automatically. Copy/edit directives there.
+
+[options]
+# Misc options
+#UseSyslog
+#Color
+#NoProgressBar
+CheckSpace
+#VerbosePkgLists
+ParallelDownloads = 5
+DownloadUser = alpm
+#DisableSandboxFilesystem
+#DisableSandboxSyscalls
+
+# Pacman won't upgrade packages listed in IgnorePkg and members of IgnoreGroup.
+#IgnorePkg   =
+#IgnoreGroup =
+#NoUpgrade   =
+#NoExtract   =
+
+# Optional multilib repository (uncomment both lines in /etc/pacman.conf).
+#[multilib]
+#Include = /etc/pacman.d/mirrorlist

@@ -1,0 +1,118 @@
+# Zacman declarative configuration.
+# Package lists start empty intentionally; choose the packages you want managed.
+schema_version = 1
+
+[packages]
+repo = []
+# Packages listed here are excluded from Zacman's full-system update transactions.
+ignore_updates = []
+
+# Optional additional foreign inventory maintained directly in this file.
+# Imported foreign packages are recorded here; their origin is not assumed to be AUR.
+[packages.foreign]
+items = []
+
+[packages.aur]
+# Enable to install AUR packages with yay/paru; if neither exists Zacman can
+# bootstrap yay from the AUR, built as the invoking unprivileged user.
+# Review all AUR PKGBUILDs before installing third-party build recipes.
+enabled = false
+items = [
+  # Uncomment package names you actually want Zacman to install from the AUR.
+  # "paru",
+  # "yay",
+]
+
+[services]
+# These lists manage enablement only; they do not start or stop services.
+enable = []
+disable = []
+
+[mirrors]
+# Extra servers added to /etc/pacman.d/mirrorlist; use URLs compatible with every
+# repository that includes that mirrorlist, normally ending in $repo/os/$arch.
+servers = []
+# BlackArch mirrors go to a separate managed mirrorlist. If the repository is
+# not active, a confirmed init with mirrors here can bootstrap BlackArch safely.
+blackarch_servers = []
+
+[pacman]
+# Adds the ILoveCandy option inside [options] in /etc/pacman.conf.
+ilove_candy = true
+
+# Optional ecosystem managers. Pacman packages belong in [packages].repo;
+# Flatpak app IDs and ecosystem packages belong in their dedicated sections.
+[flatpak]
+pkgs = []
+user_pkgs = []
+remote = "flathub"
+scope = "system" # system or user
+
+[greeter]
+# Pacman packages needed by the greeter can be listed here.
+pkgs = []
+system = "" # sddm, gdm, lightdm, greetd, ly, or emptty
+# SDDM only: name of an installed theme directory under /usr/share/sddm/themes.
+theme = "" # name or absolute path under /usr/share/sddm/themes
+theme_source = "" # local or repo; leave empty when no theme is selected
+# Required when theme_source = "repo" and theme is set.
+theme_package = ""
+
+[mouse]
+# Cursor packages are installed through Pacman, separate from the theme setting.
+pkgs = []
+# Use an installed theme directory name or absolute path under a supported icons directory.
+# Examples: "Breeze_Light" or "/usr/share/icons/Breeze_Light"
+theme = ""
+theme_source = "" # local or repo; leave empty when no theme is selected
+# Required if theme_source = "repo" and theme is set.
+theme_package = ""
+size = 0 # 0 preserves current size; otherwise 8-128 pixels
+
+[desktop]
+pkgs = []
+# Copy source files relative to /etc/zacman to destinations under /etc or ~/.config.
+# Example: ["profiles/niri/config.kdl=>~/.config/niri/config.kdl"]
+config = []
+
+[audio]
+pkgs = []
+config = []
+
+[kernel]
+pkgs = []
+config = []
+
+[fonts]
+pkgs = []
+config = []
+
+[locale]
+system_language = "" # e.g. en_US.UTF-8; locale must be enabled in /etc/locale.gen
+keyboard_layout = "" # e.g. us or us,ru
+keyboard_variant = ""
+keyboard_model = ""
+keyboard_options = ""
+
+[python.uv]
+# Preferred for Python CLI tools; avoids changing Arch's system Python environment.
+pkgs = []
+config = []
+
+[python.pip3]
+# User-scoped pip only; Zacman will not bypass PEP 668 with break-system-packages.
+pkgs = []
+config = []
+
+[node.npm]
+pkgs = []
+config = []
+
+[rust.cargo]
+pkgs = []
+config = []
+
+[golang]
+# Go module selectors, normally module/path@version or module/path@latest.
+pkgs = []
+config = []
