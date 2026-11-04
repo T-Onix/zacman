@@ -1,8 +1,5 @@
 # Zacman
 
-[![CI](https://github.com/T-Onix/zacman/actions/workflows/ci.yml/badge.svg)](https://github.com/T-Onix/zacman/actions/workflows/ci.yml)
-[![License: MIT](https://img.shields.io/badge/License-MIT-green.svg)](LICENSE)
-
 **Zacman is a declarative system and package manager for Arch Linux, written in Go.** It lets you describe the packages, services, mirrors, and selected desktop/system settings you want, review a proposed plan, and reconcile that state through Arch's native tools.
 
 Zacman does not replace Pacman, systemd, or the package managers for external ecosystems. It coordinates them while keeping a managed package baseline and a human-editable TOML manifest.
