@@ -163,7 +163,6 @@ For full options and examples, see [Commands](docs/commands.md).
 - [Troubleshooting](docs/troubleshooting.md)
 - [Contributing and development](CONTRIBUTING.md)
 - [Security reporting](SECURITY.md)
-- [Changelog](CHANGELOG.md)
 
 ## Development
 
