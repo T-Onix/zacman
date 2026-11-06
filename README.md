@@ -1,7 +1,11 @@
 # Zacman
 
 <p align="center">
+<<<<<<< HEAD
   <video src="https://github.com/user-attachments/assets/ca353428-e28e-49d6-a153-472fc052bae6"
+=======
+  <video src="https://ik.imagekit.io/dgg8it5ir/video.mp4"
+>>>>>>> a2d7e1d (readme updated)
          controls
          width="100%">
   </video>
