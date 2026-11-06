@@ -1,10 +1,12 @@
 # Zacman
 
 <p align="center">
-  <video src="https://ik.imagekit.io/dgg8it5ir/video.mp4"
-         controls
-         width="100%">
-  </video>
+  <a href="https://ik.imagekit.io/dgg8it5ir/video.mp4">
+    <img
+      src="https://ik.imagekit.io/dgg8it5ir/video_converted.gif"
+      alt="ZACMAN INTRO"
+      width="100%">
+  </a>
 </p>
 
 <p align="center">
