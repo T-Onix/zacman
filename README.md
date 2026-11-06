@@ -1,5 +1,15 @@
 # Zacman
 
+<p align="center">
+  <img src="video.mp4" alt="ZACMAN INTRO" width="100%">
+</p>
+
+
+<p align="center">
+  <a href="https://golang.org"><img src="https://img.shields.io/badge/Go-1.21+-00ADD8?style=for-the-badge&logo=go" alt="Go"></a>
+  <a href="https://github.com/t-onix/snare/blob/main/LICENSE"><img src="https://img.shields.io/badge/License-GNU-green?style=for-the-badge" alt="License"></a>
+</p>
+
 **Zacman is a declarative system and package manager for Arch Linux, written in Go.** It lets you describe the packages, services, mirrors, and selected desktop/system settings you want, review a proposed plan, and reconcile that state through Arch's native tools.
 
 Zacman does not replace Pacman, systemd, or the package managers for external ecosystems. It coordinates them while keeping a managed package baseline and a human-editable TOML manifest.
@@ -20,13 +30,6 @@ Zacman does not replace Pacman, systemd, or the package managers for external ec
 - Configuration updates preserve unrelated TOML content and use atomic file replacement; state-changing operations use an exclusive lock.
 - System tools are invoked with structured argument arrays rather than shell-interpolated configuration values.
 - Tests use temporary files and mocked command execution; the GitHub Actions workflow is configured to check formatting, run unit/race tests and vet, and build the binary.
-
-## Important Arch Linux behavior
-
-> [!WARNING]
-> Arch Linux does not support partial upgrades. When `zacman init` has missing Pacman or AUR targets, it refreshes sync databases with `pacman -Sy` and installs only the requested targets. It does **not** run a full system upgrade. This can leave installed packages out of sync with refreshed repositories. Run `sudo zacman update` regularly and before troubleshooting package/library inconsistencies.
-
-`zacman update` is the Zacman-managed full-upgrade operation and uses `pacman -Syu`. `zacman init -du` skips the database refresh and uses the existing local sync databases; it does not make partial upgrades safe. These behaviors are explicit so reconciliation and full system upgrades remain separate operations.
 
 > [!NOTE]
 > Zacman is a pre-1.0 project. Review `zacman diff` before applying changes and test system-level behavior in a disposable Arch Linux VM before relying on it across machines.
@@ -188,7 +191,3 @@ The unit tests use temporary files and mocked command execution; they do not tra
 - AUR PKGBUILDs and the BlackArch bootstrap script are third-party code. Review the trust boundary and [security notes](docs/security.md).
 - Automated greeter theme management is SDDM-specific; other supported greeters can be selected and enabled, but their theme configuration is not automated.
 - Zacman does not scan arbitrary files in `~/.config`. Config file copies must be explicitly declared.
-
-## License
-
-Zacman is released under the [MIT License](LICENSE).
