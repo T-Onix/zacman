@@ -1,9 +1,11 @@
 # Zacman
 
 <p align="center">
-  <img src="video.mp4" alt="ZACMAN INTRO" width="100%">
+  <video src="video.mp4"
+         controls
+         width="100%">
+  </video>
 </p>
-
 
 <p align="center">
   <a href="https://golang.org"><img src="https://img.shields.io/badge/Go-1.21+-00ADD8?style=for-the-badge&logo=go" alt="Go"></a>
