@@ -75,6 +75,22 @@ func (m Manager) Start(unit string) error   { return m.run("start", unit) }
 func (m Manager) Stop(unit string) error    { return m.run("stop", unit) }
 func (m Manager) Status(unit string) error  { return m.run("status", "--no-pager", unit) }
 
+func (m Manager) EnableNow(unit string) error  { return m.run("enable", "--now", unit) }
+func (m Manager) DisableNow(unit string) error { return m.run("disable", "--now", unit) }
+
+// Invoke runs systemctl with explicit arguments. Managed ctl actions use it for
+// optional systemctl flags instead of adding a method per flag combination.
+func (m Manager) Invoke(args ...string) error { return m.run(args...) }
+
+// Passthrough runs systemctl with the caller's exact arguments and streams,
+// without touching Zacman's manifest or lock. Systemctl owns its own lock.
+func (m Manager) Passthrough(args ...string) error {
+	if len(args) == 0 {
+		return fmt.Errorf("no systemctl arguments supplied; run 'zacman help' for Zacman commands")
+	}
+	return m.run(args...)
+}
+
 func (m Manager) run(args ...string) error {
 	cmd := exec.Command(m.binary(), args...)
 	cmd.Stdin, cmd.Stdout, cmd.Stderr = m.Stdin, m.Stdout, m.Stderr

@@ -7,10 +7,8 @@ import (
 	"github.com/T-Onix/zacman/internal/planner"
 )
 
-// filterInstalledProviderTargets removes targets which Pacman already considers
-// satisfied by installed packages' Provides metadata. We intentionally leave the
-// raw installed package set unchanged in planner.BuildWithRetained so removal
-// transactions only target actual installed package names, never virtual aliases.
+// filterInstalledProviderTargets drops targets Pacman already satisfies through
+// installed Provides. The raw installed set stays untouched so removals only target real names.
 func filterInstalledProviderTargets(client pacman.Client, plan planner.Plan) (planner.Plan, error) {
 	if len(plan.Install) == 0 {
 		return plan, nil

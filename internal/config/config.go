@@ -116,9 +116,8 @@ type GreeterConfig struct {
 	ThemePackage string   `toml:"theme_package"`
 }
 
-// MouseConfig manages cursor packages and the desktop cursor theme. Theme names
-// are preferred; absolute paths are accepted only under standard icon-theme roots.
-// Size 0 means preserve the currently configured cursor size.
+// MouseConfig holds cursor packages and the cursor theme. Absolute theme paths
+// must sit under a standard icon-theme root; Size 0 keeps the current size.
 type MouseConfig struct {
 	Pkgs         []string `toml:"pkgs"`
 	Theme        string   `toml:"theme"`
@@ -188,10 +187,8 @@ func Default() Config {
 	}
 }
 
-// ResolveSDDMTheme accepts either a theme directory name or an absolute path
-// to a directory inside SDDM's standard theme root. SDDM's Current setting
-// requires the directory name, so callers should write name to the SDDM config
-// and use dir when checking the local theme directory.
+// ResolveSDDMTheme takes a theme name or a path under /usr/share/sddm/themes.
+// It returns the directory name for SDDM's Current setting plus the local path.
 func ResolveSDDMTheme(theme string) (name, dir string, err error) {
 	const themeRoot = "/usr/share/sddm/themes"
 	if theme == "" || strings.TrimSpace(theme) != theme || strings.ContainsAny(theme, "\x00\r\n") {
@@ -216,10 +213,8 @@ func ResolveSDDMTheme(theme string) (name, dir string, err error) {
 	return theme, filepath.Join(root, theme), nil
 }
 
-// ResolveCursorTheme accepts a cursor theme directory name or an absolute path
-// under /usr/share/icons, /usr/local/share/icons, ~/.local/share/icons, or ~/.icons.
-// It returns a preferred lookup directory for a bare name even if not present yet,
-// which allows a repo-provided theme to be installed before applying it.
+// ResolveCursorTheme takes a theme name or a path under a standard icon-theme
+// root. A bare name still gets a lookup directory so a repo theme can install first.
 func ResolveCursorTheme(theme string) (name, dir string, err error) {
 	if theme == "" || strings.TrimSpace(theme) != theme || strings.ContainsAny(theme, "\x00\r\n") {
 		return "", "", errors.New("expected a cursor theme directory name or an absolute path inside an icon-theme directory")
@@ -301,9 +296,8 @@ func LoadBase(path string) (Config, error) {
 	return cfg, nil
 }
 
-// Load reads the main manifest and expands every referenced package inventory.
-// The returned Config is the effective desired state; use LoadBase before writing
-// zacman.toml so imported packages remain in their separate files.
+// Load reads the manifest and expands every referenced inventory. Use LoadBase
+// before writing zacman.toml so imported packages stay in their own files.
 func Load(path string) (Config, error) {
 	cfg, err := LoadBase(path)
 	if err != nil {
@@ -359,9 +353,8 @@ func Load(path string) (Config, error) {
 		if cfg.Greeter.System == "" {
 			cfg.Greeter.System = inventory.GreeterSystem
 		}
-		// SDDM theme metadata is only meaningful when the effective greeter is
-		// SDDM. Do not resurrect a stale SDDM theme after the user switches to
-		// GDM, LightDM, greetd, ly, or emptty.
+		// Only honor SDDM theme metadata when SDDM is the active greeter; don't
+		// resurrect a stale theme after switching to GDM, LightDM, greetd, ly, or emptty.
 		if cfg.Greeter.System == "sddm" {
 			if cfg.Greeter.Theme == "" {
 				cfg.Greeter.Theme = inventory.GreeterTheme
@@ -668,9 +661,8 @@ func containsString(values []string, value string) bool {
 	return false
 }
 
-// validateConfigMappings accepts entries in the form source=>destination. Sources
-// are relative paths beneath the Zacman config directory; destinations are /etc
-// paths or ~/.config paths. They are copied only during an explicitly confirmed init.
+// validateConfigMappings checks source=>destination entries. Sources are relative
+// paths under the Zacman config dir; destinations are under /etc/ or ~/.config/.
 func validateConfigMappings(field string, values []string) error {
 	seen := map[string]bool{}
 	for i, item := range values {
@@ -719,12 +711,8 @@ func AllPacmanPackages(cfg Config) []string {
 	return SortedUnique(pkgs)
 }
 
-// CategoryWarnings recommends keeping specialist stacks in their dedicated
-// TOML groups. It does not reject a package list because Arch package names can
-// be ambiguous and the warning is advisory only.
-// OrganizePackages moves recognizable specialized packages out of packages.repo
-// into their dedicated sections. It changes configuration only; it never installs
-// or removes anything. The movement map is suitable for concise doctor output.
+// OrganizePackages moves recognizable specialist packages out of packages.repo
+// into their dedicated sections. It only edits config and returns what moved.
 func OrganizePackages(cfg Config) (Config, map[string][]string) {
 	moved := map[string][]string{}
 	kept := make([]string, 0, len(cfg.Packages.Repo))
@@ -794,6 +782,8 @@ func OrganizePackages(cfg Config) (Config, map[string][]string) {
 	return cfg, moved
 }
 
+// CategoryWarnings suggests moving specialist stacks into their dedicated TOML
+// groups. The warning is advisory: Arch package names can be ambiguous.
 func CategoryWarnings(cfg Config) []string {
 	warnings := []string{}
 	seen := map[string]bool{}
@@ -888,10 +878,8 @@ func validateMirrorServers(field string, servers []string) error {
 	return nil
 }
 
-// DuplicatePackageEntries reports repeated package names within each package
-// list in the primary Zacman manifest. The first occurrence is retained.
-// It deliberately parses without full validation so init can repair an invalid
-// duplicate list before the regular strict validation path runs.
+// DuplicatePackageEntries reports repeated names within each package list. The
+// first occurrence wins. It skips strict validation so init can repair bad lists.
 func DuplicatePackageEntries(path string) ([]string, error) {
 	data, err := ReadRaw(path)
 	if err != nil {
@@ -904,9 +892,8 @@ func DuplicatePackageEntries(path string) ([]string, error) {
 	return collectDuplicatePackageEntries(&cfg), nil
 }
 
-// RepairDuplicatePackageEntries removes repeated names from package arrays in
-// the primary manifest and preserves all unrelated user formatting/comments.
-// The caller owns the confirmation prompt; this method only commits a repair.
+// RepairDuplicatePackageEntries removes repeated names from the primary manifest
+// and preserves unrelated formatting. The caller owns the confirmation prompt.
 func RepairDuplicatePackageEntries(path string) ([]string, error) {
 	data, err := ReadRaw(path)
 	if err != nil {
@@ -1038,10 +1025,8 @@ func WriteAtomic(path string, cfg Config) error {
 		return err
 	}
 	path = normalizeConfigPath(path)
-	// When a privileged command is run through sudo, let the invoking user
-	// retain ownership of the default /etc/zacman config tree so subsequent
-	// edits and atomic saves work without sudo. Custom --config paths are never
-	// silently re-owned.
+	// Under sudo, keep the default /etc/zacman tree owned by the invoking user so
+	// later edits and atomic saves work without sudo. Custom --config paths are left alone.
 	if os.Geteuid() == 0 && filepath.Clean(path) == filepath.Clean(DefaultPath) {
 		if _, _, ok := sudoTargetIDs(); ok {
 			if err := FixOwnership(path); err != nil {
@@ -1152,10 +1137,8 @@ func writeAtomicBytes(path string, data []byte) error {
 	return nil
 }
 
-// DecodeInventory parses the deliberately small format accepted by referenced
-// package files. It only permits schema_version, packages.repo, and
-// packages.foreign.items so a reference cannot smuggle other settings into the
-// primary manifest.
+// DecodeInventory parses the small format allowed in referenced package files:
+// schema_version, packages.repo, and packages.foreign.items. Anything else fails.
 func DecodeInventory(data []byte) (Inventory, error) {
 	cfg, err := parseInventoryTOML(data)
 	if err != nil {
@@ -1198,9 +1181,8 @@ func MarshalInventory(repo, foreign []string) ([]byte, error) {
 	return MarshalFullInventory(Inventory{Repo: repo, Foreign: foreign})
 }
 
-// MarshalFullInventory serializes the complete optional inventory snapshot. The
-// referenced file keeps package-manager and hardware-specific inventory out of
-// the main configuration while still participating in effective state.
+// MarshalFullInventory writes the full optional inventory snapshot, keeping
+// package-manager and hardware-specific state out of the main config.
 func MarshalFullInventory(inv Inventory) ([]byte, error) {
 	cfg := Default()
 	cfg.Reference.PackageFiles = []string{}
@@ -1331,9 +1313,8 @@ func EnsureInventoryFile(path string) error {
 	return nil
 }
 
-// RemovePackagesFromReferences removes names from every referenced inventory.
-// It is used by zacman uninstall so a package imported via -axp does not become
-// desired again on the next reconciliation.
+// RemovePackagesFromReferences drops names from every referenced inventory, so
+// an uninstalled package imported via -axp doesn't come back on the next reconcile.
 func RemovePackagesFromReferences(path string, packages []string) ([]string, error) {
 	cfg, err := LoadBase(path)
 	if err != nil {
@@ -1463,10 +1444,8 @@ func sudoTargetIDs() (uint32, uint32, bool) {
 	return uint32(uidValue), uint32(gidValue), true
 }
 
-// FixOwnership makes the directory containing the specified manifest and all
-// regular config/inventory/profile files user-editable for the invoking sudo
-// user. It rejects symlinks and special files, never follows links, and removes
-// group/world-write permissions before transferring ownership.
+// FixOwnership hands the manifest directory and its regular config files to the
+// invoking sudo user. It refuses symlinks, never follows links, and strips group/world write.
 func FixOwnership(manifestPath string) error {
 	if os.Geteuid() != 0 {
 		return errors.New("fixing /etc/zacman ownership requires root; run 'sudo zacman doctor'")
@@ -1535,9 +1514,8 @@ func Contains(values []string, target string) bool {
 	return false
 }
 
-// ValidatePackages validates a CLI-supplied package list independently of the manifest.
-// ValidateServiceUnit validates a systemd system-unit name before it is
-// written to the manifest or passed as an argument to systemctl.
+// ValidateServiceUnit checks a systemd system-unit name before it reaches the
+// manifest or systemctl.
 func ValidateServiceUnit(unit string) error {
 	if strings.TrimSpace(unit) != unit || unit == "" || !unitNameRE.MatchString(unit) {
 		return fmt.Errorf("invalid systemd unit name %q (include a supported suffix such as .service)", unit)
@@ -1545,6 +1523,7 @@ func ValidateServiceUnit(unit string) error {
 	return nil
 }
 
+// ValidatePackages checks a CLI-supplied package list on its own, without the manifest.
 func ValidatePackages(values []string) error {
 	return uniqueAndValid("packages", values, packageNameRE)
 }

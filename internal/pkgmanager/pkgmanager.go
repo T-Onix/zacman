@@ -1,5 +1,5 @@
-// Package pkgmanager provides safe, shell-free adapters for non-Pacman package
-// managers used by Zacman. Pacman remains the owner of Arch repository packages.
+// Package pkgmanager adapts non-Pacman package managers without a shell.
+// Pacman still owns Arch repository packages.
 package pkgmanager
 
 import (
@@ -100,8 +100,8 @@ func binaryFor(kind Kind) string {
 	}
 }
 
-// Installed returns the top-level packages tracked by a manager. User-scoped
-// managers run as the invoking user when Zacman was started through sudo.
+// Installed returns a manager's top-level packages. User-scoped managers run as
+// the invoking user when Zacman was started through sudo.
 func Installed(kind Kind, scope, remote string) ([]string, error) {
 	var name string
 	var args []string
@@ -130,8 +130,8 @@ func Installed(kind Kind, scope, remote string) ([]string, error) {
 	}
 	out, err := output(name, args, userContext)
 	if err != nil {
-		// npm ls exits non-zero when the tree contains warnings or unmet optional
-		// dependencies. Its JSON can still be valid and useful to inventory.
+		// npm ls can exit non-zero on warnings or unmet optional deps and still
+		// print valid inventory JSON.
 		if kind != NPM || len(bytes.TrimSpace(out)) == 0 {
 			return nil, fmt.Errorf("query %s installed packages: %w", kind, err)
 		}
@@ -139,9 +139,8 @@ func Installed(kind Kind, scope, remote string) ([]string, error) {
 	return parseInstalled(kind, out)
 }
 
-// parseInstalled converts each manager's native inventory output into canonical
-// package selectors. Keeping parsing pure allows fixture tests to cover manager
-// output changes without running a real package manager.
+// parseInstalled converts native inventory output into canonical selectors.
+// It stays pure so fixture tests can cover output changes without a real manager.
 func parseInstalled(kind Kind, out []byte) ([]string, error) {
 	var values []string
 	switch kind {
@@ -155,8 +154,8 @@ func parseInstalled(kind Kind, out []byte) ([]string, error) {
 			values = append(values, value)
 		}
 	case UV:
-		// `uv tool list` starts each tool with `name vX.Y`; command entries
-		// are indented or start with a dash and are not tool names.
+		// `uv tool list` puts the tool name first; indented or dashed lines are
+		// command entries, not tool names.
 		for _, line := range strings.Split(string(out), "\n") {
 			trimmed := strings.TrimSpace(line)
 			if trimmed == "" || strings.HasPrefix(trimmed, "-") || strings.EqualFold(trimmed, "No tools installed") {
@@ -212,8 +211,8 @@ func IsInstalled(kind Kind, installed []string, wanted string) bool {
 		if canonical(kind, item) == want {
 			return true
 		}
-		// Go metadata often exposes a versioned module path while config can use
-		// @latest. Match module path irrespective of its requested version.
+		// Compare Go module paths without their version: metadata often carries one
+		// while the config says @latest.
 		if kind == Go && beforeAt(item) == beforeAt(wanted) {
 			return true
 		}
@@ -287,8 +286,7 @@ func Install(kind Kind, pkg, remote, scope string) error {
 		name, args = "uv", []string{"tool", "install", pkg}
 	case Pip3:
 		// Keep Python packages out of Arch's externally managed system Python.
-		// `pip --user` is non-destructive; if PEP 668 refuses it, report that and
-		// recommend uv rather than bypassing the protection with break-system-packages.
+		// If PEP 668 refuses pip --user, suggest uv instead of break-system-packages.
 		name, args = "python3", []string{"-m", "pip", "install", "--user", pkg}
 	case NPM:
 		name, args = "npm", []string{"install", "--global", pkg}
@@ -324,8 +322,8 @@ func Install(kind Kind, pkg, remote, scope string) error {
 }
 
 func Update(kind Kind, packages []string, remote, scope string) error {
-	// Managers with per-tool version semantics are invoked once per package so
-	// every argument is interpreted by the proper native subcommand.
+	// Cargo and Go need one call per package so each version spec reaches the
+	// right subcommand.
 	if kind == Cargo || kind == Go {
 		if len(packages) == 0 {
 			return fmt.Errorf("%s requires explicit package names for updates", kind)
@@ -397,9 +395,8 @@ func Update(kind Kind, packages []string, remote, scope string) error {
 	return nil
 }
 
-// Uninstall uses each ecosystem's native remover. Go-installed tools deliberately
-// return an error because a module path is not a safe/reliable way to infer which
-// binary should be removed from a user's bin directory.
+// Uninstall uses each ecosystem's native remover. Go is refused: a module path
+// doesn't reliably name the binary to remove from the user's bin directory.
 func Uninstall(kind Kind, pkg string, remote, scope string) error {
 	if err := ValidatePackage(kind, pkg); err != nil {
 		return err
@@ -478,9 +475,8 @@ func installedGoModules(userContext bool) ([]string, error) {
 	if err != nil {
 		return nil, fmt.Errorf("query go environment: %w", err)
 	}
-	// Do not TrimSpace the whole output before splitting: `go env GOBIN
-	// GOPATH` intentionally prints an empty first line when GOBIN is unset.
-	// Trimming that newline would mistake GOPATH for GOBIN and skip ~/go/bin.
+	// Don't trim the whole output: `go env GOBIN GOPATH` prints an empty first
+	// line when GOBIN is unset, and trimming it would mistake GOPATH for GOBIN.
 	lines := strings.Split(strings.TrimRight(string(out), "\r\n"), "\n")
 	gobin := ""
 	gopath := ""
@@ -508,28 +504,38 @@ func installedGoModules(userContext bool) ([]string, error) {
 		if err != nil {
 			continue
 		}
-		for _, line := range strings.Split(string(meta), "\n") {
-			fields := strings.Fields(line)
-			if len(fields) >= 3 && fields[0] == "mod" {
-				mod := fields[1]
-				version := fields[2]
-				if version != "(devel)" && !strings.HasPrefix(version, "v") {
-					version = ""
-				}
-				if version != "" {
-					values = append(values, mod+"@"+version)
-				} else {
-					values = append(values, mod)
-				}
-				break
+		if selector := goModuleSelector(meta); selector != "" {
+			// Never let a malformed selector abort the whole inventory import.
+			if ValidatePackage(Go, selector) != nil {
+				continue
 			}
+			values = append(values, selector)
 		}
 	}
 	return unique(values), nil
 }
 
-// resolveGoInstallPaths resolves Go's effective binary directory without losing
-// the empty GOBIN value emitted when users rely on GOPATH/bin.
+// goModuleSelector reads the module path and pinned release from `go version -m`
+// output. Local builds report "(devel)" instead of a release tag, and a
+// non-release string must never reach the manifest: config validation rejects it
+// (for example "aiscam@(devel)") and would abort the whole inventory import.
+func goModuleSelector(meta []byte) string {
+	for _, line := range strings.Split(string(meta), "\n") {
+		fields := strings.Fields(line)
+		if len(fields) < 2 || fields[0] != "mod" {
+			continue
+		}
+		mod := fields[1]
+		if len(fields) >= 3 && strings.HasPrefix(fields[2], "v") {
+			return mod + "@" + fields[2]
+		}
+		return mod
+	}
+	return ""
+}
+
+// resolveGoInstallPaths picks Go's binary directory, honoring an empty GOBIN by
+// falling back to GOPATH/bin.
 func resolveGoInstallPaths(gobin, gopath string) (string, string) {
 	gobin = strings.TrimSpace(gobin)
 	gopath = strings.TrimSpace(gopath)

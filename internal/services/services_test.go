@@ -38,6 +38,55 @@ func TestIsEnabledRecognizesDisabledDespiteExitCodeOne(t *testing.T) {
 	}
 }
 
+func TestEnableNowAndDisableNowForwardNowFlag(t *testing.T) {
+	dir := t.TempDir()
+	capture := filepath.Join(dir, "args")
+	path := filepath.Join(dir, "systemctl")
+	script := "#!/bin/sh\nprintf '%s\\n' \"$@\" >> \"$SYSTEMCTL_CAPTURE\"\n"
+	if err := os.WriteFile(path, []byte(script), 0700); err != nil {
+		t.Fatal(err)
+	}
+	t.Setenv("SYSTEMCTL_CAPTURE", capture)
+	manager := Manager{Binary: path}
+	if err := manager.EnableNow("foo.service"); err != nil {
+		t.Fatal(err)
+	}
+	if err := manager.DisableNow("bar.service"); err != nil {
+		t.Fatal(err)
+	}
+	data, err := os.ReadFile(capture)
+	if err != nil {
+		t.Fatal(err)
+	}
+	want := "enable\n--now\nfoo.service\ndisable\n--now\nbar.service\n"
+	if string(data) != want {
+		t.Fatalf("systemctl args = %q, want %q", data, want)
+	}
+}
+
+func TestPassthroughForwardsExactArguments(t *testing.T) {
+	dir := t.TempDir()
+	capture := filepath.Join(dir, "args")
+	path := filepath.Join(dir, "systemctl")
+	script := "#!/bin/sh\nprintf '%s\\n' \"$@\" >> \"$SYSTEMCTL_CAPTURE\"\n"
+	if err := os.WriteFile(path, []byte(script), 0700); err != nil {
+		t.Fatal(err)
+	}
+	t.Setenv("SYSTEMCTL_CAPTURE", capture)
+	manager := Manager{Binary: path}
+	if err := manager.Passthrough("--user", "status", "--full", "sshd.service"); err != nil {
+		t.Fatal(err)
+	}
+	data, err := os.ReadFile(capture)
+	if err != nil {
+		t.Fatal(err)
+	}
+	want := "--user\nstatus\n--full\nsshd.service\n"
+	if string(data) != want {
+		t.Fatalf("systemctl args = %q, want %q", data, want)
+	}
+}
+
 func TestStartStopAndStatusForwardStructuredArguments(t *testing.T) {
 	dir := t.TempDir()
 	capture := filepath.Join(dir, "args")

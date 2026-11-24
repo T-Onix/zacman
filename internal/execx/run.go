@@ -1,5 +1,5 @@
-// Package execx runs child processes without allowing Ctrl+C to kill Zacman
-// before its foreground child has had a chance to shut down.
+// Package execx runs child processes without letting Ctrl+C kill Zacman before
+// its foreground child shuts down.
 package execx
 
 import (
@@ -12,10 +12,8 @@ import (
 // ErrInterrupted reports that the user interrupted a running child process.
 var ErrInterrupted = errors.New("interrupted by Ctrl+C")
 
-// Run waits for the child even when Ctrl+C is pressed. In a normal terminal,
-// the interrupt is delivered to the foreground process group, so both Zacman
-// and its child receive it. Notify prevents Zacman from exiting immediately
-// and orphaning Pacman; the child can handle SIGINT and terminate cleanly.
+// Run waits for the child even when Ctrl+C is pressed. The terminal signals the
+// whole foreground group, so waiting keeps Zacman from orphaning Pacman mid-shutdown.
 func Run(cmd *exec.Cmd) error {
 	interrupts := make(chan os.Signal, 1)
 	signal.Notify(interrupts, os.Interrupt)

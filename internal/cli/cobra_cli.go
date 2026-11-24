@@ -12,6 +12,13 @@ import (
 )
 
 func (a *App) newCobraRoot() *cobra.Command {
+	return a.newCobraRootWithCompletion(true)
+}
+
+// newCobraRootWithCompletion builds the command tree. The proxy used to ask
+// Cobra for non-flag completions must skip our own __complete command so Cobra's
+// built-in implementation handles that request instead.
+func (a *App) newCobraRootWithCompletion(canonical bool) *cobra.Command {
 	configPath := config.DefaultPath
 	noColor := false
 	root := &cobra.Command{
@@ -45,7 +52,7 @@ func (a *App) newCobraRoot() *cobra.Command {
 	initCmd := &cobra.Command{
 		Use:   "init",
 		Short: "Reconcile the system with the Zacman configuration",
-		Long:  "Reconcile configured packages and systemd startup policy. Missing repository/AUR targets trigger a sync-database refresh with pacman -Sy followed by target-only installs; init never runs a full system upgrade. Arch Linux does not support partial upgrades, so use zacman update for a full upgrade. Duplicate package entries prompt for cleanup; -dc removes duplicates without prompting. Use --default-file-config to create a fresh empty configuration, or --add-existing-packages to import the installed package inventory without package transactions.",
+		Long:  "Reconcile configured packages and systemd startup policy. Missing repository/AUR targets trigger a sync-database refresh with pacman -Sy followed by target-only installs; init never runs a full system upgrade. Duplicate package entries prompt for cleanup; -dc removes duplicates without prompting. Use -dfc to create a fresh empty configuration, or -axp to import the installed package inventory without package transactions.",
 		Args:  cobra.NoArgs,
 		RunE: func(cmd *cobra.Command, args []string) error {
 			modeArgs := append([]string(nil), args...)
@@ -74,7 +81,7 @@ func (a *App) newCobraRoot() *cobra.Command {
 	initCmd.Flags().Bool("add-existing-packages", false, "Import explicitly installed packages only; exclude dependencies and run no package transactions")
 	initCmd.Flags().Bool("dry-run", false, "Preview reconciliation without changes")
 	initCmd.Flags().BoolP("yes", "y", false, "Skip confirmation")
-	initCmd.Flags().Bool("dont-update", false, "Use -du/--dont-update: install with pacman -S without refreshing databases (partial-upgrade risk)")
+	initCmd.Flags().Bool("dont-update", false, "Use -du: install with pacman -S without refreshing databases (partial-upgrade risk)")
 	initCmd.Flags().Bool("dedupe-config", false, "Use -dc to remove duplicate package entries without prompting")
 	// Cobra uses one help flag with a shorthand alias on each command.
 	initCmd.InitDefaultHelpFlag()
@@ -107,7 +114,7 @@ func (a *App) newCobraRoot() *cobra.Command {
 			return a.install(configPath, args, dontUpdate)
 		},
 	}
-	installCmd.Flags().Bool("dont-update", false, "Use -du/--dont-update: pacman -S without refreshing databases or upgrading the system (partial-upgrade risk)")
+	installCmd.Flags().Bool("dont-update", false, "Use -du: pacman -S without refreshing databases or upgrading the system (partial-upgrade risk)")
 	installCmd.Flags().SetInterspersed(true)
 	root.AddCommand(installCmd)
 	root.AddCommand(&cobra.Command{
@@ -132,6 +139,9 @@ func (a *App) newCobraRoot() *cobra.Command {
 	root.AddCommand(a.newCtlCommand(configPath))
 	root.AddCommand(a.newRepoCommand())
 	root.AddCommand(newCompletionCommand())
+	if canonical {
+		root.AddCommand(a.newCanonicalCompleteCommand())
+	}
 
 	return root
 }
@@ -140,7 +150,7 @@ func (a *App) newCtlCommand(configPath string) *cobra.Command {
 	ctl := &cobra.Command{
 		Use:   "ctl",
 		Short: "Inspect and control systemd units",
-		Long:  "enable/disable update the persistent services.enable/services.disable policy and invoke systemctl immediately. start/stop are runtime-only and do not change the TOML policy.",
+		Long:  "enable/disable update the persistent services.enable/services.disable policy and invoke systemctl immediately (add --now to also start/stop the unit). start/stop/restart are runtime-only and do not change the TOML policy. Any other systemctl command or option is passed through unchanged, e.g. 'zacman ctl status --full sshd' or 'zacman ctl --user list-units'.",
 		Args:  cobra.NoArgs,
 		RunE:  func(_ *cobra.Command, _ []string) error { return a.showControlConfig(configPath) },
 	}
@@ -148,8 +158,9 @@ func (a *App) newCtlCommand(configPath string) *cobra.Command {
 		Use: "list", Short: "Show configured service startup policies", Aliases: []string{"ls"}, Args: cobra.NoArgs,
 		RunE: func(_ *cobra.Command, _ []string) error { return a.showControlConfig(configPath) },
 	})
-	for _, action := range []string{"enable", "disable", "start", "stop", "status"} {
+	for _, action := range []string{"enable", "disable", "start", "stop", "restart", "status"} {
 		action := action
+		now, noBlock := false, false
 		cmd := &cobra.Command{
 			Use:               action + " <unit>",
 			Short:             ctlDescription(action),
@@ -157,10 +168,16 @@ func (a *App) newCtlCommand(configPath string) *cobra.Command {
 			ValidArgsFunction: systemUnitCompletion,
 			RunE: func(_ *cobra.Command, args []string) error {
 				if action == "enable" || action == "disable" {
-					return a.controlPolicy(configPath, action, args[0])
+					return a.controlPolicy(configPath, action, args[0], now)
 				}
-				return a.controlRuntime(action, args[0])
+				return a.controlRuntime(action, args[0], noBlock)
 			},
+		}
+		switch action {
+		case "enable", "disable":
+			cmd.Flags().BoolVar(&now, "now", false, "Start or stop the unit immediately (systemctl --now)")
+		case "start", "stop", "restart":
+			cmd.Flags().BoolVar(&noBlock, "no-block", false, "Do not wait for the operation to finish (systemctl --no-block)")
 		}
 		ctl.AddCommand(cmd)
 	}
@@ -177,6 +194,8 @@ func ctlDescription(action string) string {
 		return "Start a unit now without changing startup policy"
 	case "stop":
 		return "Stop a unit now without changing startup policy"
+	case "restart":
+		return "Restart a unit now without changing startup policy"
 	case "status":
 		return "Show detailed systemctl status for a unit"
 	default:

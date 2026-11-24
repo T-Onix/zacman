@@ -36,7 +36,7 @@ Zacman writes its own marker blocks in system configuration/mirrorlist files and
 
 ## Pacman transaction modes
 
-When `init` has missing repository/AUR targets, it refreshes sync databases with `pacman -Sy` and then installs only those targets; it does not upgrade the whole system. Arch Linux does not support partial upgrades, so run `sudo zacman update` regularly and before troubleshooting package/library inconsistencies. `init -du` skips the database refresh and uses the local sync databases already on disk. This flag does not make partial upgrades safe. `update` is the full-system path and uses `pacman -Syu`.
+When `init` has missing repository/AUR targets, it refreshes sync databases with `pacman -Sy` and then installs only those targets; it does not upgrade the whole system. `init -du` skips the database refresh and uses the local sync databases already on disk. This flag does not make partial upgrades safe. `update` is the full-system path and uses `pacman -Syu`.
 
 
 ## Existing package inventory

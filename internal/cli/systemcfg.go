@@ -114,9 +114,8 @@ func buildSystemConfigPlan(cfg config.Config, configPath string, pacmanInstallPe
 							plan.themeNeedsCheck = themeName != "breeze"
 						}
 					} else if themeName != "breeze" {
-						// A structurally valid QML theme can still fail at runtime.
-						// Require an actual test-mode preview and explicit user approval
-						// before making it the boot-time greeter.
+						// A valid QML theme can still fail at runtime. Make it the boot greeter
+						// only after a test-mode preview and explicit user approval.
 						plan.themeNeedsCheck = true
 						plan.themeWarnings = append(plan.themeWarnings, fmt.Sprintf("SDDM theme %q must pass a graphical preview; if the preview is unavailable, crashes, or looks wrong, Zacman will keep %s active", themeName, sddmThemeLabel(fallback)))
 					} else {
@@ -479,10 +478,8 @@ func atomicConfigCopy(item configCopy) error {
 	return nil
 }
 
-// ensureDestinationDirectory creates only missing path components. For targets
-// under ~/.config when Zacman is invoked with sudo, newly created directories
-// are owned by the invoking user rather than root. Existing directories are
-// never chowned, and every existing component is checked for symlinks.
+// ensureDestinationDirectory creates only missing components and checks each
+// existing one for symlinks. New ~/.config dirs under sudo belong to the invoking user.
 func ensureDestinationDirectory(path string, owner *osuser.User) error {
 	path = filepath.Clean(path)
 	if err := rejectSymlinkPath(path, false); err != nil {
@@ -701,9 +698,8 @@ type sddmThemeVerification struct {
 	Reason      string `json:"reason,omitempty"`
 }
 
-// validateSDDMThemeDir checks the theme's metadata and entry QML script before
-// it can be made the boot-time greeter. Structural checks are complemented by
-// a user-visible sddm-greeter test-mode preview below.
+// validateSDDMThemeDir checks the theme metadata and entry QML before it can
+// become the boot greeter. The sddm-greeter test-mode preview covers runtime.
 func validateSDDMThemeDir(themeDir string) error {
 	if err := rejectSymlinkPath(themeDir, true); err != nil {
 		return fmt.Errorf("theme directory path is unsafe: %w", err)
@@ -1095,9 +1091,8 @@ func isRegularNonSymlink(path string) bool {
 }
 
 func hasPendingGreeterThemePackage(cfg config.Config, installing []string) bool {
-	// This flag tells system configuration planning that a repository theme may
-	// appear only after the Pacman transaction. It covers both SDDM themes and
-	// cursor themes so pre-install validation does not reject an expected path.
+	// This flag says a repository theme may appear only after the Pacman transaction.
+	// It covers SDDM and cursor themes so pre-install validation doesn't reject the path.
 	pending := makeSet(installing)
 	for _, pkg := range cfg.Greeter.Pkgs {
 		if pending[pkg] {

@@ -11,8 +11,8 @@ import (
 	"github.com/T-Onix/zacman/internal/transaction"
 )
 
-// showControlConfig displays the persistent startup policy. Runtime start/stop
-// actions are intentionally separate from enable/disable policy.
+// showControlConfig displays the persisted startup policy. Runtime start/stop is
+// separate from enable/disable policy.
 func (a *App) showControlConfig(path string) error {
 	cfg, err := config.Load(path)
 	if err != nil {
@@ -48,8 +48,8 @@ func normalizeCLIUnit(raw string) (string, error) {
 	if unit != raw {
 		return "", fmt.Errorf("invalid whitespace around systemd unit name %q", raw)
 	}
-	// Convenience: `zacman ctl enable sshd` means sshd.service. Full systemd
-	// unit names such as NetworkManager.service or docker.socket are unchanged.
+	// `zacman ctl enable sshd` means sshd.service. Full unit names such as
+	// NetworkManager.service or docker.socket are left alone.
 	if !strings.Contains(unit, ".") {
 		unit += ".service"
 	}
@@ -59,7 +59,7 @@ func normalizeCLIUnit(raw string) (string, error) {
 	return unit, nil
 }
 
-func (a *App) controlPolicy(path, action, rawUnit string) error {
+func (a *App) controlPolicy(path, action, rawUnit string, now bool) error {
 	unit, err := normalizeCLIUnit(rawUnit)
 	if err != nil {
 		return err
@@ -118,7 +118,13 @@ func (a *App) controlPolicy(path, action, rawUnit string) error {
 
 	var actionErr error
 	if action == "enable" {
-		actionErr = manager.Enable(unit)
+		if now {
+			actionErr = manager.EnableNow(unit)
+		} else {
+			actionErr = manager.Enable(unit)
+		}
+	} else if now {
+		actionErr = manager.DisableNow(unit)
 	} else {
 		actionErr = manager.Disable(unit)
 	}
@@ -133,7 +139,7 @@ func (a *App) controlPolicy(path, action, rawUnit string) error {
 	return nil
 }
 
-func (a *App) controlRuntime(action, rawUnit string) error {
+func (a *App) controlRuntime(action, rawUnit string, noBlock bool) error {
 	unit, err := normalizeCLIUnit(rawUnit)
 	if err != nil {
 		return err
@@ -151,9 +157,23 @@ func (a *App) controlRuntime(action, rawUnit string) error {
 	manager := services.New()
 	switch action {
 	case "start":
-		err = manager.Start(unit)
+		if noBlock {
+			err = manager.Invoke("start", "--no-block", unit)
+		} else {
+			err = manager.Start(unit)
+		}
 	case "stop":
-		err = manager.Stop(unit)
+		if noBlock {
+			err = manager.Invoke("stop", "--no-block", unit)
+		} else {
+			err = manager.Stop(unit)
+		}
+	case "restart":
+		if noBlock {
+			err = manager.Invoke("restart", "--no-block", unit)
+		} else {
+			err = manager.Invoke("restart", unit)
+		}
 	case "status":
 		err = manager.Status(unit)
 	default:
@@ -192,4 +212,50 @@ func removeUnit(values []string, unit string) []string {
 		}
 	}
 	return out
+}
+
+// systemctlPassthroughArgs forwards anything under `zacman ctl` that is not a
+// managed action to systemctl. Managed actions stay with Cobra so they can keep
+// the TOML policy in sync; an unrecognized systemctl option on a managed action
+// is also forwarded rather than rejected.
+func systemctlPassthroughArgs(args []string) ([]string, bool) {
+	for i := 0; i < len(args); {
+		switch {
+		case args[i] == "--config":
+			if i+1 >= len(args) {
+				return nil, false
+			}
+			i += 2
+		case strings.HasPrefix(args[i], "--config=") || args[i] == "--no-color":
+			i++
+		case args[i] == "ctl":
+			rest := args[i+1:]
+			if len(rest) == 0 {
+				return nil, false
+			}
+			switch rest[0] {
+			case "list", "ls", "enable", "disable", "start", "stop", "restart", "status", "help", "-h", "--help":
+				for _, arg := range rest[1:] {
+					if strings.HasPrefix(arg, "-") && !isManagedCtlFlag(arg) {
+						return rest, true
+					}
+				}
+				return nil, false
+			default:
+				return rest, true
+			}
+		default:
+			return nil, false
+		}
+	}
+	return nil, false
+}
+
+func isManagedCtlFlag(arg string) bool {
+	for _, flag := range []string{"--now", "--no-block", "--help"} {
+		if arg == flag || strings.HasPrefix(arg, flag+"=") {
+			return true
+		}
+	}
+	return arg == "-h"
 }

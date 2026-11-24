@@ -13,9 +13,8 @@ type assignmentSpan struct {
 	lines      []string
 }
 
-// preserveUserFormatting updates only TOML assignments whose semantic value
-// changed. It keeps all untouched source text byte-for-byte, including comments,
-// table ordering, spacing, and user-authored notes.
+// preserveUserFormatting rewrites only TOML assignments whose value changed. All
+// untouched text stays byte-for-byte, including comments, order, and spacing.
 func preserveUserFormatting(original, encoded []byte, oldCfg, newCfg Config) ([]byte, error) {
 	oldCanonical, err := encodeTOML(oldCfg)
 	if err != nil {
@@ -69,9 +68,8 @@ func preserveUserFormatting(original, encoded []byte, oldCfg, newCfg Config) ([]
 	}
 
 	if len(missing) > 0 {
-		// Insert missing keys in existing tables; if an entire table is absent,
-		// append that canonical table once. Most old configs only encounter this
-		// path when a newly introduced option is explicitly changed.
+		// Insert missing keys into existing tables; append a canonical table once
+		// if the whole table is gone. Usually only happens for a newly changed option.
 		sort.Strings(missing)
 		missingByTable := map[string][]string{}
 		for _, full := range missing {

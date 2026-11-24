@@ -237,9 +237,8 @@ func TestSplitInstalledInventoryHandlesLargeSystem(t *testing.T) {
 }
 
 func TestInventoryPacmanPackagesKeepsDependenciesOutWhenGivenExplicitSet(t *testing.T) {
-	// Pacman reports dependency-installed libraries in -Qq, but -Qqen/-Qqem
-	// only return explicitly installed targets. The inventory builder must not
-	// invent desired packages beyond the explicit list it receives.
+	// -Qq lists dependency-installed libraries, but -Qqen/-Qqem only return explicit
+	// targets. The inventory builder must not invent desired packages beyond that list.
 	inv := inventoryPacmanPackages([]string{"neovim"}, nil, config.Inventory{})
 	if !reflect.DeepEqual(inv.Repo, []string{"neovim"}) {
 		t.Fatalf("repo inventory = %#v, want only neovim", inv.Repo)

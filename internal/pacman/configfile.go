@@ -41,8 +41,8 @@ func HasBlackArchRepositoryIn(data []byte) bool {
 	return false
 }
 
-// SystemSettingsDiff lists only Pacman settings that would change, allowing
-// the CLI to keep its plan concise without hiding managed configuration changes.
+// SystemSettingsDiff lists only Pacman settings that would change, so the CLI can
+// keep its plan short without hiding managed changes.
 func SystemSettingsDiff(iloveCandy bool, mirrors, blackarchMirrors []string) ([]string, error) {
 	changes := []string{}
 	conf, err := os.ReadFile(DefaultPacmanConf)
@@ -110,9 +110,8 @@ func mirrorDiff(path string, servers []string, begin, end, label string) (string
 	return fmt.Sprintf("remove Zacman-managed %s entries", label), nil
 }
 
-// SyncSystemSettings applies Zacman's managed Pacman options and extra mirrors
-// while preserving unrelated user configuration. BlackArch mirror URLs are
-// only connected when a [blackarch] repository section already exists.
+// SyncSystemSettings applies Zacman's Pacman options and mirrors while preserving
+// unrelated config. BlackArch URLs only apply when [blackarch] already exists.
 func SyncSystemSettings(iloveCandy bool, mirrors, blackarchMirrors []string) error {
 	if len(blackarchMirrors) > 0 && !HasBlackArchRepository() {
 		return errors.New("BlackArch mirrors are configured but its repository/keyring is not enabled; run 'sudo zacman repo enable blackarch' or reconcile after configuring mirrors")
@@ -199,9 +198,8 @@ func RenderManagedMirrorlist(original []byte, servers []string, begin, end strin
 	return joinLines(append(block, cleaned...)), nil
 }
 
-// RenderILoveCandy updates the ILoveCandy directive inside [options]. The
-// marker block makes repeat runs idempotent. If disabled, Zacman removes active
-// ILoveCandy directives from [options] so the TOML remains authoritative.
+// RenderILoveCandy manages the ILoveCandy directive in [options]. The marker block
+// keeps runs idempotent; disabling it removes active directives so TOML wins.
 func RenderILoveCandy(original []byte, enabled bool) ([]byte, error) {
 	lines := splitLinesPreserve(original)
 	cleaned, _, err := removeMarkerBlock(lines, candyBegin, candyEnd)

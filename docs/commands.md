@@ -2,7 +2,7 @@
 
 ## Zacman-managed operations
 
-- `zacman init`: reconcile packages, systemd enablement, Pacman options, and configured mirrors. For missing Pacman/AUR targets it runs `pacman -Sy` once, then installs only requested targets with `pacman -S --needed`; it never upgrades the whole system. Arch Linux does not support partial upgrades, so use `zacman update` regularly and before diagnosing library/package inconsistencies.
+- `zacman init`: reconcile packages, systemd enablement, Pacman options, and configured mirrors. For missing Pacman/AUR targets it runs `pacman -Sy` once, then installs only requested targets with `pacman -S --needed`; it never upgrades the whole system.
 - `zacman init -dfc`: create only an empty default `/etc/zacman/zacman.toml`; refuses to overwrite an existing main config and does not modify `/etc/pacman.conf` or create sidecar files.
 - `zacman init --dry-run`: display the diff without modifying packages, services, Pacman configuration, mirrors, or state. Duplicate entries are reported but never repaired during a dry run.
 - `zacman init -dc`: automatically remove duplicate package names from each TOML package list, keeping the first occurrence and preserving unrelated config/comment formatting, then continue reconciliation. Without `-dc`, `init` prompts before repairing duplicates; that cleanup prompt defaults to No when you press Enter. `-y` also accepts the cleanup.
@@ -16,10 +16,11 @@
 - `zacman install -du PACKAGE...` or `zacman install PACKAGE... -du`: use `pacman -S` without refresh/full upgrade; this carries a partial-upgrade risk.
 - `zacman uninstall PACKAGE...`: remove only Zacman-managed packages and update the manifest based on Pacman's observed result.
 - `zacman ctl` / `zacman ctl list`: show the configured service enablement policy.
-- `zacman ctl enable UNIT`: enable now and add UNIT to `services.enable`; remove it from `services.disable`.
-- `zacman ctl disable UNIT`: disable now and add UNIT to `services.disable`; remove it from `services.enable`.
-- `zacman ctl start|stop UNIT`: start/stop now without changing the manifest's enablement policy.
+- `zacman ctl enable UNIT [--now]`: enable now and add UNIT to `services.enable`; remove it from `services.disable`. `--now` also starts the unit immediately, like `systemctl enable --now`.
+- `zacman ctl disable UNIT [--now]`: disable now and add UNIT to `services.disable`; remove it from `services.enable`. `--now` also stops the unit immediately.
+- `zacman ctl start|stop|restart UNIT [--no-block]`: runtime-only actions that do not change the manifest's enablement policy. `--no-block` skips waiting for completion.
 - `zacman ctl status UNIT`: display `systemctl status` for a unit.
+- `zacman ctl <systemctl args...>`: pass any other systemctl command or option through unchanged, e.g. `zacman ctl status --full sshd`, `zacman ctl --user list-units`, or `zacman ctl daemon-reload`. Passthrough preserves systemctl's output and exit status and does not touch the TOML manifest.
 - `zacman completion bash|zsh|fish|powershell`: generate self-contained/native shell completion scripts.
 - `zacman doctor`: check required commands, configuration, state readability, permissions, and package-section organization. Use `zacman doctor --check` for diagnosis without repair.
 - `zacman repo status`: show whether the supported BlackArch repository is enabled.

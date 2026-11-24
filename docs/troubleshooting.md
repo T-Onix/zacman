@@ -10,7 +10,7 @@
 
 ## Pacman and package transactions
 
-- **Important: partial-upgrade state:** normal `zacman init` uses `pacman -Sy` only when there are missing Pacman/AUR targets, then installs those targets. It does not upgrade the complete system. Arch Linux does not support partial upgrades; run `sudo zacman update` to perform the full `pacman -Syu` upgrade and keep the system coherent.
+- **Partial-upgrade state:** normal `zacman init` uses `pacman -Sy` only when there are missing Pacman/AUR targets, then installs those targets. It does not upgrade the complete system. `sudo zacman update` performs the full `pacman -Syu` upgrade.
 - **`init -du`:** this skips the `-Sy` sync-database refresh and installs against the local sync databases already present on disk. It is not a partial-upgrade safety feature; stale databases can cause package-resolution problems. The full upgrade command remains `sudo zacman update`.
 - **`install -du`:** this uses `pacman -S` without a refresh/full upgrade. It carries a partial-upgrade risk.
 - **Partial transaction:** inspect actual package/service state, run `zacman diff`, and rerun the relevant Zacman command after correcting the reported issue. Zacman does not claim to roll back external Pacman/systemd side effects.

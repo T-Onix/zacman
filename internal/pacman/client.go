@@ -36,9 +36,8 @@ func (c Client) output(args ...string) ([]byte, error) {
 	cmd.Stdout = &stdout
 	cmd.Stderr = &stderr
 	if err := execx.Run(cmd); err != nil {
-		// Pacman can exit 1 for a query with no matches. Treat that as an
-		// empty result only when the process emitted no output or diagnostics.
-		// Never mask a real interrupt or a query/database error.
+		// Pacman exits 1 on a query with no matches. Treat that as empty only when it
+		// printed nothing; never mask an interrupt or a real database error.
 		var exitErr *exec.ExitError
 		if !errors.Is(err, execx.ErrInterrupted) && errors.As(err, &exitErr) && exitErr.ExitCode() == 1 && stdout.Len() == 0 && strings.TrimSpace(stderr.String()) == "" {
 			return stdout.Bytes(), nil
@@ -71,17 +70,8 @@ func (c Client) InstalledPackages() ([]string, error) {
 	return strings.Fields(string(out)), nil
 }
 
-// SatisfiedByInstalledProviders returns requested package targets already
-// satisfied by the local Pacman database, including virtual names provided by
-// another installed package (for example, exiftool by perl-image-exiftool or
-// xxd by vim). It uses pacman -T, so it does not confuse a command merely found
-// in PATH with a package that Pacman considers installed.
-//
-// Callers should pass only targets absent from InstalledPackages(). The result
-// contains only the passed targets that are satisfied; unresolved targets are
-// omitted. Pacman's documented dependency-test exit status is non-zero when it
-// prints unsatisfied targets, so we validate its output before treating that as
-// a normal result. Interrupts and genuine query errors are never suppressed.
+// SatisfiedByInstalledProviders returns targets satisfied by the local Pacman DB,
+// including Provides aliases; pass only targets missing from InstalledPackages().
 func (c Client) SatisfiedByInstalledProviders(targets []string) ([]string, error) {
 	if len(targets) == 0 {
 		return []string{}, nil
@@ -138,8 +128,8 @@ func (c Client) SatisfiedByInstalledProviders(targets []string) ([]string, error
 	return satisfied, nil
 }
 
-// ExplicitNativePackages lists explicitly installed packages that originate
-// from sync repositories. Foreign packages are deliberately not labeled AUR.
+// ExplicitNativePackages lists explicitly installed packages from sync repos.
+// Foreign packages are never labeled AUR.
 func (c Client) ExplicitNativePackages() ([]string, error) {
 	out, err := c.output("-Qqen")
 	if err != nil {
@@ -148,9 +138,8 @@ func (c Client) ExplicitNativePackages() ([]string, error) {
 	return strings.Fields(string(out)), nil
 }
 
-// ExplicitForeignPackages lists explicitly installed packages that are not
-// present in the configured sync repositories. Packages installed only as
-// dependencies are intentionally excluded from Zacman's desired inventory.
+// ExplicitForeignPackages lists explicitly installed packages from outside the
+// sync repos. Dependency-only packages are left out of Zacman's desired inventory.
 func (c Client) ExplicitForeignPackages() ([]string, error) {
 	out, err := c.output("-Qqem")
 	if err != nil {
@@ -159,12 +148,11 @@ func (c Client) ExplicitForeignPackages() ([]string, error) {
 	return strings.Fields(string(out)), nil
 }
 
-// ForeignPackages reports installed package names that are not present in the
-// currently configured sync repositories. It does not assume these are AUR.
+// ForeignPackages reports installed packages outside the configured sync repos.
+// It does not assume they are AUR.
 func (c Client) ForeignPackages() ([]string, error) {
-	// pacman returns exit status 1 when a query filter has no matches on some
-	// versions/configurations. For -Qqm, empty stdout and stderr with status 1
-	// means there are no foreign packages, not that the local database failed.
+	// Pacman exits 1 when -Qqm has no matches. Empty stdout and stderr then mean
+	// no foreign packages, not a database failure.
 	cmd := exec.Command(c.binary(), "-Qqm")
 	var stdout, stderr bytes.Buffer
 	cmd.Stdout = &stdout
@@ -182,9 +170,8 @@ func (c Client) ForeignPackages() ([]string, error) {
 	return strings.Fields(stdout.String()), nil
 }
 
-// SyncDatabases refreshes sync databases without upgrading any installed package.
-// Arch warns that -Sy can leave a partial-upgrade state until a full `pacman -Syu`;
-// Zacman exposes the full upgrade separately as `zacman update` by design.
+// SyncDatabases refreshes sync databases without upgrading anything. -Sy can leave
+// a partial-upgrade state; full upgrades are exposed separately as `zacman update`.
 func (c Client) SyncDatabases() error {
 	return c.run("-Sy")
 }
@@ -240,9 +227,8 @@ func InstallArgs(packages []string, dontUpdate bool, ignored []string) []string 
 	return args
 }
 
-// UpdateArgs always performs a full upgrade to avoid Arch Linux partial upgrades.
-// Supplying package names targets those packages as well, but still upgrades the
-// system as a whole.
+// UpdateArgs always does a full upgrade to avoid Arch partial upgrades. Extra
+// package names are targeted too, but the rest of the system still upgrades.
 func UpdateArgs(packages, ignored []string) []string {
 	return InstallArgs(packages, false, ignored)
 }
@@ -270,10 +256,8 @@ func (c Client) Remove(packages []string) error {
 	return c.run(RemoveArgs(packages)...)
 }
 
-// Passthrough runs Pacman with the caller's exact argument list and connects
-// all standard streams directly. It deliberately does not alter arguments,
-// apply Zacman's ignore list, update the manifest, or try to acquire Zacman's
-// state lock; Pacman remains authoritative for its own CLI and database lock.
+// Passthrough runs Pacman with the caller's exact args and streams, without
+// touching the manifest, ignore list, or Zacman lock. Pacman owns its own lock.
 func (c Client) Passthrough(args ...string) error {
 	if len(args) == 0 {
 		return fmt.Errorf("no Pacman arguments supplied; run 'zacman help' for Zacman commands")

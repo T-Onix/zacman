@@ -7,9 +7,8 @@ import (
 	"unicode/utf8"
 )
 
-// This schema-focused TOML reader supports the TOML constructs used by Zacman:
-// tables, integers, booleans, quoted strings, comments, and single/multiline
-// arrays of strings. Unknown keys and unsupported TOML constructs fail closed.
+// This small TOML reader covers what Zacman uses: tables, integers, booleans,
+// quoted strings, comments, and string arrays. Unknown keys fail closed.
 func parseTOML(data []byte) (Config, error) {
 	return parseTOMLMode(data, true, false)
 }

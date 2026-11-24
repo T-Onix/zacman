@@ -65,10 +65,8 @@ func (a *App) newRepoCommand() *cobra.Command {
 	return repo
 }
 
-// enableBlackArchRepository invokes the official BlackArch strap script only
-// after HTTPS retrieval and comparison against the checksum published by
-// BlackArch's installation instructions. The script runs as root because its
-// documented role is to install the keyring and edit Pacman's repository setup.
+// enableBlackArchRepository runs the official strap script only after fetching it
+// over HTTPS and checking BlackArch's published checksum. It runs as root by design.
 func (a *App) enableBlackArchRepository() error {
 	if err := requireRoot("enable the BlackArch repository and install its keyring"); err != nil {
 		return err

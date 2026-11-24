@@ -56,9 +56,8 @@ func collectManagerInventory(prior config.Inventory) (config.Inventory, []string
 			return // keep the prior inventory when the optional manager is absent
 		}
 		if queryErr != nil {
-			// A manager can be installed but unusable (missing remote, broken
-			// Python environment, etc.). Preserve its previous inventory and
-			// continue importing the rest of the system instead of aborting -axp.
+			// A manager can be installed but unusable (missing remote, broken Python
+			// env). Keep its previous inventory and import the rest instead of aborting -axp.
 			warnings = append(warnings, fmt.Sprintf("could not refresh %s inventory; preserved its previous entries: %v", label, queryErr))
 			return
 		}

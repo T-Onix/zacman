@@ -93,6 +93,25 @@ func TestParseInstalledManagerInventories(t *testing.T) {
 	}
 }
 
+func TestGoModuleSelectorOmitsNonReleaseVersions(t *testing.T) {
+	cases := []struct {
+		name string
+		meta string
+		want string
+	}{
+		{"release", "\tpath\texample.com/tool\n\tmod\texample.com/tool\tv1.2.3\th1:abc=\n", "example.com/tool@v1.2.3"},
+		{"devel", "\tpath\taiscam\n\tmod\taiscam\t(devel)\t\n", "aiscam"},
+		{"devel replacement", "\tpath\taiscam\n\tmod\taiscam\t(devel)\t\n\t=>\texample.com/aiscam\tv0.1.0\th1:abc=\n", "aiscam"},
+		{"unversioned", "\tpath\texample.com/tool\n\tmod\texample.com/tool\t\n", "example.com/tool"},
+		{"no module metadata", "\tpath\texample.com/tool\n", ""},
+	}
+	for _, tc := range cases {
+		if got := goModuleSelector([]byte(tc.meta)); got != tc.want {
+			t.Errorf("%s: goModuleSelector() = %q; want %q", tc.name, got, tc.want)
+		}
+	}
+}
+
 func TestResolveGoInstallPathsKeepsDefaultGOBINBehavior(t *testing.T) {
 	gotBin, gotPath := resolveGoInstallPaths("", "/home/hunter/go")
 	if gotBin != "/home/hunter/go/bin" || gotPath != "/home/hunter/go" {

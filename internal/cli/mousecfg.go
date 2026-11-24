@@ -14,10 +14,8 @@ import (
 	"github.com/T-Onix/zacman/internal/config"
 )
 
-// validateCursorThemeDir checks the filesystem shape used by Xcursor themes.
-// A valid theme must be a real directory containing a non-empty cursors folder.
-// index.theme is optional in the Xcursor ecosystem, but when present it must be
-// a regular file (not a symlink or special file).
+// validateCursorThemeDir checks the Xcursor layout: a real directory with a
+// non-empty cursors folder. index.theme is optional, but must be a regular file.
 func validateCursorThemeDir(themeDir string) error {
 	if err := rejectSymlinkPath(themeDir, true); err != nil {
 		return fmt.Errorf("cursor theme path is unsafe: %w", err)

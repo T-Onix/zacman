@@ -32,9 +32,8 @@ type aurRPCResponse struct {
 	} `json:"results"`
 }
 
-// lookupAURPackages checks exact package names through the official AUR RPC v5
-// info endpoint. AUR lookup is read-only; package builds still require an
-// explicit user decision and are run as the invoking unprivileged user.
+// lookupAURPackages checks exact names through the official AUR RPC v5 info
+// endpoint. It is read-only; builds still need an explicit user decision.
 func lookupAURPackages(names []string) (map[string]bool, error) {
 	client := &http.Client{Timeout: 15 * time.Second}
 	return lookupAURPackagesAt(context.Background(), client, defaultAURRPCBase, names)
@@ -146,9 +145,8 @@ func uniqueAURPackages(values []string) []string {
 	return out
 }
 
-// canonicalAURPackageName maps documented project/binary selectors to the
-// actual AUR package name. AUR manifests should normally use the PKGBUILD's
-// pkgname; aliases are kept for compatibility with earlier Zacman manifests.
+// canonicalAURPackageName maps documented project/binary selectors to the real
+// AUR package name. Manifests should use pkgname; aliases keep old ones working.
 func canonicalAURPackageName(name string) string {
 	switch name {
 	case "ghgrab":
@@ -166,10 +164,8 @@ func canonicalAURPackages(values []string) []string {
 	return uniqueAURPackages(canonical)
 }
 
-// missingAURPackageTargets returns real AUR package names which are not
-// installed. Compatibility aliases are checked against both their old and
-// canonical names to avoid repeatedly reinstalling a package such as ghgrab-bin
-// when the manifest still says ghgrab.
+// missingAURPackageTargets returns real AUR names that aren't installed. It checks
+// both alias and canonical names so ghgrab/ghgrab-bin isn't reinstalled every run.
 func missingAURPackageTargets(configured, installed []string) []string {
 	installedSet := make(map[string]bool, len(installed))
 	for _, name := range installed {
@@ -242,14 +238,14 @@ func runAsInvokingUser(account invokingUser, directory, binary string, args ...s
 	return nil
 }
 
-// installAURPackages is intentionally limited to a helper-backed AUR workflow.
-// It never runs makepkg as root and never evaluates PKGBUILD values as shell text.
+// installAURPackages only works through a helper. It never runs makepkg as root
+// or evaluates PKGBUILD values as shell text.
 func installAURPackages(packages []string, dontUpdate bool) error {
 	return installAURPackagesMode(packages, !dontUpdate)
 }
 
-// installAURPackagesSynced is used by init after its own optional `pacman -Sy`.
-// It must not run yay/paru -Syu because init is intentionally install-only.
+// installAURPackagesSynced runs after init's optional `pacman -Sy`. It must not
+// run yay/paru -Syu: init only installs.
 func installAURPackagesSynced(packages []string) error {
 	return installAURPackagesMode(packages, false)
 }

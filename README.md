@@ -10,7 +10,7 @@
 </p>
 
 <p align="center">
-  <a href="https://golang.org"><img src="https://img.shields.io/badge/Go-1.21+-00ADD8?style=for-the-badge&logo=go" alt="Go"></a>
+  <a href="https://golang.org"><img src="https://img.shields.io/badge/Go-1.23+-00ADD8?style=for-the-badge&logo=go" alt="Go"></a>
   <a href="https://github.com/t-onix/snare/blob/main/LICENSE"><img src="https://img.shields.io/badge/License-GNU-green?style=for-the-badge" alt="License"></a>
 </p>
 
@@ -154,10 +154,14 @@ Review AUR PKGBUILDs before installing them. AUR packages are community-maintain
 | `zacman update` | Perform a full system upgrade with `pacman -Syu` |
 | `zacman install PKG...` | Install packages and record successful targets |
 | `zacman uninstall PKG...` | Remove Zacman-managed repository packages |
-| `zacman ctl ...` | Inspect or change systemd service policy/runtime state |
+| `zacman ctl enable\|disable UNIT [--now]` | Set boot policy and optionally start/stop the unit now |
+| `zacman ctl start\|stop\|restart UNIT [--no-block]` | Runtime-only actions; TOML policy is unchanged |
+| `zacman ctl <systemctl args...>` | Pass any other systemctl command or flags through unchanged |
 | `zacman doctor` | Diagnose config, state, dependencies, and package organization |
 | `zacman completion SHELL` | Generate Bash, Zsh, Fish, or PowerShell completion |
 | `zacman repo enable blackarch` | Set up the supported BlackArch repository |
+
+Help and tab completion show one spelling per flag: `--help` (not `-h`), `--version` (not `-v`), `-y` (not `--yes`), and `-dfc` / `-axp` / `-du` / `-dc` for `init`. The older long forms are still accepted.
 
 For full options and examples, see [Commands](docs/commands.md).
 

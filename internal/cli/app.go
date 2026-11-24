@@ -44,9 +44,8 @@ type options struct {
 }
 
 func (a *App) Run(args []string) error {
-	// Keep Pacman's full CLI available and preserve its exact argument vector,
-	// terminal streams, prompts, and exit status. Zacman-owned commands are
-	// handled by Cobra below.
+	// Keep Pacman's full CLI: exact argv, terminal streams, prompts, and exit status.
+	// Zacman-owned commands are handled by Cobra below.
 	if shouldPassthroughToPacman(args) {
 		if len(args) > 0 && args[0] == "pacman" {
 			args = args[1:]
@@ -60,14 +59,21 @@ func (a *App) Run(args []string) error {
 		return pacman.New().Passthrough(filtered...)
 	}
 
+	if systemctlArgs, ok := systemctlPassthroughArgs(args); ok {
+		return services.New().Passthrough(systemctlArgs...)
+	}
+
 	args = normalizeLegacyInitFlags(args)
 	previousNoColor := noColorOverride
 	defer func() { noColorOverride = previousNoColor }()
 	root := a.newCobraRoot()
+	output := &aliasWriter{out: os.Stdout}
+	defer output.Flush()
+	root.SetOut(output)
 	root.SetArgs(args)
 	if err := root.Execute(); err != nil {
-		// Preserve the old concise error wording for users familiar with earlier
-		// Zacman releases while Cobra supplies the command-tree implementation.
+		// Keep the old concise error text for users of earlier Zacman releases;
+		// Cobra handles the command tree.
 		if strings.Contains(err.Error(), "unknown command") {
 			if first := firstUnknownCommand(args); first != "" {
 				return fmt.Errorf("unknown Zacman command %q; use 'zacman --help' or a Pacman option such as 'zacman -Ss <term>'", first)
@@ -130,9 +136,8 @@ func shouldPassthroughToPacman(args []string) bool {
 		return false
 	}
 
-	// Options before a Zacman subcommand are Zacman globals. If no Zacman
-	// command follows and a Pacman switch does, forward the original argv so
-	// Pacman's own --config, --dbpath, --root, and other flags remain intact.
+	// Options before a Zacman subcommand are Zacman globals. If none follows and a
+	// Pacman switch does, forward the original argv to keep --config, --dbpath, etc.
 	for i := 0; i < len(args); {
 		arg := args[i]
 		switch {
@@ -255,10 +260,8 @@ func (a *App) initCommand(path string, args []string) error {
 	return a.reconcile(path, args)
 }
 
-// addExistingPackages imports only packages Pacman marks as explicitly
-// installed and appends them to the primary manifest. Existing package entries,
-// settings, references, and user comments are retained; no inventory files are
-// created or refreshed and no package transaction is run.
+// addExistingPackages imports only explicitly installed packages into the primary
+// manifest. It keeps existing entries and comments, and runs no transaction.
 func (a *App) addExistingPackages(path string) error {
 	if err := requireRoot("import the installed package inventory and update Zacman's state"); err != nil {
 		return err
@@ -290,8 +293,8 @@ func (a *App) addExistingPackages(path string) error {
 	repoInventory = config.SortedUnique(repoInventory)
 	foreignInventory = config.SortedUnique(foreignInventory)
 
-	// Build a snapshot for the state baseline, then append the snapshot into the
-	// existing manifest. We deliberately do not use any generated reference file.
+	// Snapshot the current state for the baseline, then append it to the manifest.
+	// No generated reference file here.
 	detected := inventoryPacmanPackages(repoInventory, foreignInventory, config.Inventory{})
 	detected, managerWarnings, err := collectManagerInventory(detected)
 	if err != nil {
@@ -324,8 +327,22 @@ func (a *App) addExistingPackages(path string) error {
 
 	explicitCount := len(repoInventory) + len(foreignInventory)
 	fmt.Fprintf(os.Stdout, "%s Appended %d explicitly installed Pacman packages to %s\n", paint("mint", "✓"), explicitCount, path)
-	fmt.Fprintf(os.Stdout, "  Repository: %d | Kernel: %d | Audio: %d | Desktop: %d | Fonts: %d | Greeter: %d | Foreign: %d\n", len(detected.Repo), len(detected.KernelPkgs), len(detected.AudioPkgs), len(detected.DesktopPkgs), len(detected.FontPkgs), len(detected.GreeterPkgs), len(detected.Foreign))
-	fmt.Fprintf(os.Stdout, "  Flatpak: %d system / %d user | uv: %d | pip3: %d | npm: %d | Cargo: %d | Go tools: %d\n", len(detected.Flatpak), len(detected.FlatpakUser), len(detected.PythonUV), len(detected.PythonPip3), len(detected.NodeNPM), len(detected.RustCargo), len(detected.Golang))
+	fmt.Fprintf(os.Stdout, "  %s | %s | %s | %s | %s | %s | %s\n",
+		countLabel("lavender", "Repository", len(detected.Repo)),
+		countLabel("cyan", "Kernel", len(detected.KernelPkgs)),
+		countLabel("mint", "Audio", len(detected.AudioPkgs)),
+		countLabel("yellow", "Desktop", len(detected.DesktopPkgs)),
+		countLabel("red", "Fonts", len(detected.FontPkgs)),
+		countLabel("lavender", "Greeter", len(detected.GreeterPkgs)),
+		countLabel("cyan", "Foreign", len(detected.Foreign)))
+	fmt.Fprintf(os.Stdout, "  %s | %s / %s | %s | %s | %s | %s\n",
+		countLabel("mint", "Flatpak system", len(detected.Flatpak)),
+		countLabel("mint", "Flatpak user", len(detected.FlatpakUser)),
+		countLabel("lavender", "uv", len(detected.PythonUV)),
+		countLabel("cyan", "pip3", len(detected.PythonPip3)),
+		countLabel("yellow", "npm", len(detected.NodeNPM)),
+		countLabel("red", "Cargo", len(detected.RustCargo)),
+		countLabel("subtle", "Go tools", len(detected.Golang)))
 	for _, warning := range managerWarnings {
 		fmt.Fprintf(os.Stderr, "%s %s\n", paint("yellow", "Warning:"), warning)
 	}
@@ -335,11 +352,8 @@ func (a *App) addExistingPackages(path string) error {
 	return nil
 }
 
-// appendDetectedInventory adds discovered values without replacing user values.
-// Values remain in their existing order; newly imported values are appended in
-// deterministic query order. A package already declared in packages.repo is
-// left there for `zacman doctor` to organize rather than duplicated into a
-// dedicated package category automatically.
+// appendDetectedInventory appends discovered values without replacing user values,
+// in query order. Packages already in packages.repo stay for doctor to organize.
 func appendDetectedInventory(cfg config.Config, inv config.Inventory) config.Config {
 	cfg.Packages.Repo = appendUniquePreservingOrder(cfg.Packages.Repo, inv.Repo)
 	cfg.Packages.Foreign.Items = appendUniquePreservingOrder(cfg.Packages.Foreign.Items, inv.Foreign)
@@ -714,9 +728,8 @@ func (a *App) install(path string, packages []string, dontUpdate bool) error {
 		return aurErr
 	}
 	if isAUR {
-		// Normalize known historical selectors before installing and recording
-		// the package. AUR targets are PKGBUILD package names, not necessarily
-		// the installed binary's command name.
+		// Normalize known historical selectors before install. AUR targets are PKGBUILD
+		// names, not necessarily the installed binary's command name.
 		aurPackages = canonicalAURPackages(aurPackages)
 		if err := requireRoot("install AUR packages and update the Zacman configuration"); err != nil {
 			return err
@@ -1171,8 +1184,7 @@ func (a *App) reconcile(path string, args []string) error {
 		if dontUpdate {
 			fmt.Fprintln(os.Stdout, paint("lavender", "Install mode:")+" -du selected; skipping pacman -Sy and using current local sync databases (partial-upgrade risk).")
 		} else {
-			fmt.Fprintln(os.Stdout, paint("cyan", "→")+" Refreshing sync databases only with pacman -Sy (no system upgrade). Run 'zacman update' for a full upgrade.")
-			fmt.Fprintln(os.Stdout, paint("yellow", "⚠ Warning:")+" Arch Linux does not support partial upgrades; -Sy followed by target-only installs can cause dependency/library inconsistencies. Use 'zacman update' for a full system upgrade.")
+			fmt.Fprintln(os.Stdout, paint("cyan", "→")+" Refreshing sync databases only with pacman -Sy (no system upgrade).")
 			if err := clientForInstall.SyncDatabases(); err != nil {
 				return fmt.Errorf("refresh Pacman sync databases: %w", err)
 			}
@@ -1351,10 +1363,8 @@ func (a *App) update(path string, packages []string) error {
 	return nil
 }
 
-// promoteUnavailableRepoPackagesToAUR checks only packages explicitly listed in
-// the primary [packages].repo array. It never silently reclassifies packages in
-// dedicated sections or referenced inventories. AUR candidates are moved into
-// [packages.aur] only after the user explicitly approves the AUR build.
+// promoteUnavailableRepoPackagesToAUR looks only at [packages].repo, never at
+// dedicated sections or references. It moves a candidate only after explicit approval.
 func (a *App) promoteUnavailableRepoPackagesToAUR(path string, cfg *config.Config, installTargets []string, autoApprove bool, client pacman.Client) error {
 	if len(installTargets) == 0 {
 		return nil
@@ -1480,9 +1490,8 @@ func (a *App) doctor(path string, checkOnly bool) error {
 		}
 	}
 
-	// A default config created by older Zacman versions may still be root-owned.
-	// When launched with sudo from a user session, migrate the config tree to the
-	// invoking user so their editor can save atomic replacements without sudo.
+	// An old default config may still be root-owned. Under sudo from a user session,
+	// hand the config tree to the invoking user so their editor can save without sudo.
 	if !checkOnly && os.Geteuid() == 0 && filepath.Clean(path) == filepath.Clean(config.DefaultPath) && strings.TrimSpace(os.Getenv("SUDO_UID")) != "" {
 		if err := config.FixOwnership(path); err != nil {
 			fmt.Fprintf(os.Stdout, "[FAIL] config ownership: %v\n", err)

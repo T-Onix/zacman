@@ -23,8 +23,8 @@ func AcquireLock(path string) (func(), error) {
 		return nil, fmt.Errorf("inspect lock path: %w", err)
 	}
 
-	// O_NOFOLLOW closes the lstat/open race: a path swapped to a symlink
-	// between the check above and this open must not be followed as root.
+	// O_NOFOLLOW closes the lstat/open race: a path swapped to a symlink after
+	// the check must not be followed as root.
 	fd, err := syscall.Open(path, syscall.O_CREAT|syscall.O_RDWR|syscall.O_CLOEXEC|syscall.O_NOFOLLOW|syscall.O_NONBLOCK, 0600)
 	if err != nil {
 		return nil, fmt.Errorf("open lock file: %w", err)

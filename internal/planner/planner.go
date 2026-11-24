@@ -9,14 +9,14 @@ type Plan struct {
 	DesiredMissing   []string
 }
 
-// Build computes a safe package plan. Removal is restricted to packages recorded
-// in the previous managed baseline; a missing baseline never triggers removals.
+// Build computes a safe package plan. It only removes packages from the previous
+// managed baseline; a missing baseline means no removals.
 func Build(desired, previouslyManaged, installed []string, hasBaseline bool) Plan {
 	return BuildWithRetained(desired, previouslyManaged, installed, nil, hasBaseline)
 }
 
-// BuildWithRetained avoids removing previously managed packages that have been
-// explicitly classified as foreign inventory rather than repository-managed.
+// BuildWithRetained also keeps previously managed packages that are now
+// classified as foreign inventory.
 func BuildWithRetained(desired, previouslyManaged, installed, retained []string, hasBaseline bool) Plan {
 	desiredSet := set(desired)
 	managedSet := set(previouslyManaged)
